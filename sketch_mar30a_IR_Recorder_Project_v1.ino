@@ -1,6 +1,10 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <IRremote.h>
+
+// IR
+#define IR_PIN 2
 
 // OLED display settings
 #define SCREEN_WIDTH 128
@@ -8,17 +12,25 @@
 #define OLED_RESET    -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
+
 void setup() {
   Serial.begin(9600);
+  Wire.begin();  // Ensure I2C communication starts
+
+  // Initialize IR
+  IrReceiver.begin(IR_PIN, ENABLE_LED_FEEDBACK);
+  Serial.println("IR Receiver Ready...");
 
   // Initialize OLED display
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
-    Serial.println("SSD1306 allocation failed");
-    for (;;); // Halt execution if display fails
+  Serial.println("Initializing OLED...");
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {  // Change to 0x3D if needed
+    Serial.println("SSD1306 allocation failed! Check wiring and I2C address.");
+    while (true); // Stop execution if display fails
   }
 
+  Serial.println("OLED initialized.");
   display.clearDisplay();
-  display.setTextSize(1.5);
+  display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(10, 10);
   display.print("ECE Student");
@@ -47,7 +59,9 @@ int getFirstValidIndex(int values[], int size) {
 }
 
 void loop() {
-  float voltageThresholds[4] = {3.7, 2.68, 1.78, 0.92}; 
+
+  // Voltage Reading / Matrix 4x4
+  float voltageThresholds[4] = {3.61, 2.61, 1.74, 0.89}; 
   int thresholdCount = sizeof(voltageThresholds) / sizeof(voltageThresholds[0]);
 
   float voltageA0 = analogRead(A0) * (5.0 / 1023.0);
@@ -64,16 +78,32 @@ void loop() {
 
   int activeRow = getFirstValidIndex(detectedColumn, 4);
 
-  String keypadMatrix[4][4] = {
-    {"M", "N", "O", "P"},
-    {"I", "J", "K", "L"},
-    {"E", "F", "G", "H"},
-    {"A", "B", "C", "D"}
+  const char* keypadMatrix[4][4] = {
+    {"1!", "2!", "3!", "Power On/Off"},
+    {"4!", "5!", "6!", "IR Record"},
+    {"7!", "8!", "9!", "Switch"},
+    {"*", "0!", "#", "Name Matrix"}
   };
 
+  //IR Receiver
+  // if (IrReceiver.decode()) {
+  //   Serial.print("IR Signal Received: ");
+  //   Serial.println(IrReceiver.decodedIRData.command, HEX);
+
+  //   display.clearDisplay();
+  //   display.setCursor(10, 10);
+  //   display.print("IR Cmd: ");
+  //   display.print(IrReceiver.decodedIRData.command, HEX);
+  //   display.display();
+
+  //   IrReceiver.resume();
+  // }
+
+  // Keypad Handling
   if (activeRow != -1 && detectedColumn[activeRow] != -1) {
-    String pressedKey = keypadMatrix[activeRow][detectedColumn[activeRow]];
-    
+    const char* pressedKey = keypadMatrix[activeRow][detectedColumn[activeRow]];
+
+    Serial.print("Key Pressed: ");
     Serial.println(pressedKey);
 
     // Update OLED display with pressed key
